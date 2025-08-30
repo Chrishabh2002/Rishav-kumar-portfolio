@@ -17,7 +17,7 @@ export const metadata: Metadata = {
   description:
     "Portfolio of Rishav Kumar — AI Developer, ML Engineer, and Full‑Stack Developer building intelligent, scalable experiences.",
   icons: {
-    icon: "",
+    icon: "/icon",
     apple: "/apple-icon",
   },
   themeColor: "#0ea5e9",
