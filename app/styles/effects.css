@@ -1,0 +1,186 @@
+/* Motion + surface effects for the portfolio.
+   Kept out of globals.css on purpose (that file is not to be modified). */
+
+@keyframes rk-marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+
+@keyframes rk-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+@keyframes rk-pulse-ring {
+  0% { transform: scale(0.9); opacity: 0.7; }
+  70% { transform: scale(1.6); opacity: 0; }
+  100% { transform: scale(1.6); opacity: 0; }
+}
+
+@keyframes rk-shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes rk-aurora {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+  33% { transform: translate3d(4%, -4%, 0) scale(1.1); }
+  66% { transform: translate3d(-4%, 3%, 0) scale(0.95); }
+}
+
+@keyframes rk-spin-slow {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes rk-orbit-cw {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes rk-orbit-ccw {
+  to { transform: rotate(-360deg); }
+}
+
+@keyframes rk-blink {
+  0%, 49% { opacity: 1; }
+  50%, 100% { opacity: 0; }
+}
+
+@keyframes rk-scanline {
+  0% { transform: translateY(-100%); }
+  100% { transform: translateY(400%); }
+}
+
+.rk-marquee-track {
+  display: flex;
+  width: max-content;
+  animation: rk-marquee 40s linear infinite;
+}
+.rk-marquee-track:hover { animation-play-state: paused; }
+.rk-marquee-reverse { animation-direction: reverse; animation-duration: 52s; }
+
+.rk-marquee-mask {
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent);
+}
+
+.rk-float { animation: rk-float 6s ease-in-out infinite; }
+.rk-spin-slow { animation: rk-spin-slow 18s linear infinite; }
+
+/* Orbit: the ring rotates, each chip counter-rotates at the same rate so the
+   brand marks stay upright instead of tumbling. Durations must match. */
+.rk-orbit-ring { animation: rk-orbit-cw 44s linear infinite; }
+.rk-orbit-chip { animation: rk-orbit-ccw 44s linear infinite; }
+.rk-orbit-group:hover .rk-orbit-ring,
+.rk-orbit-group:hover .rk-orbit-chip { animation-play-state: paused; }
+.rk-blink { animation: rk-blink 1s step-end infinite; }
+.rk-scanline { animation: rk-scanline 4s linear infinite; }
+
+.rk-pulse-ring::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 9999px;
+  border: 1px solid currentColor;
+  animation: rk-pulse-ring 2.4s cubic-bezier(0.23, 1, 0.32, 1) infinite;
+}
+
+.rk-aurora {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(80px);
+  animation: rk-aurora 18s ease-in-out infinite;
+  will-change: transform;
+}
+
+/* Animated gradient text */
+.rk-gradient-text {
+  background: linear-gradient(90deg, #38bdf8, #22d3ee, #a78bfa, #38bdf8);
+  background-size: 300% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: rk-shimmer 8s linear infinite;
+}
+
+/* Conic border that rotates around a card */
+.rk-conic-border {
+  position: relative;
+  isolation: isolate;
+}
+.rk-conic-border::before {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  padding: 1px;
+  background: conic-gradient(from var(--rk-angle, 0deg), transparent 0deg, rgba(34, 211, 238, 0.8) 60deg, transparent 140deg);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  opacity: 0;
+  transition: opacity 0.35s ease;
+  z-index: -1;
+}
+.rk-conic-border:hover::before { opacity: 1; }
+
+@property --rk-angle {
+  syntax: "<angle>";
+  initial-value: 0deg;
+  inherits: false;
+}
+
+@keyframes rk-rotate-angle {
+  to { --rk-angle: 360deg; }
+}
+.rk-conic-border:hover::before { animation: rk-rotate-angle 3s linear infinite; }
+
+/* Subtle blueprint grid backdrop */
+.rk-grid-bg {
+  background-image:
+    linear-gradient(rgba(56, 189, 248, 0.07) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(56, 189, 248, 0.07) 1px, transparent 1px);
+  background-size: 44px 44px;
+  -webkit-mask-image: radial-gradient(ellipse at center, #000 20%, transparent 72%);
+  mask-image: radial-gradient(ellipse at center, #000 20%, transparent 72%);
+}
+
+/* Glass surface used across cards */
+.rk-glass {
+  background: linear-gradient(150deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.02));
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.rk-glow-hover { transition: box-shadow 0.35s ease, transform 0.35s ease, border-color 0.35s ease; }
+.rk-glow-hover:hover {
+  box-shadow: 0 0 0 1px rgba(34, 211, 238, 0.25), 0 18px 50px -18px rgba(34, 211, 238, 0.55);
+  border-color: rgba(34, 211, 238, 0.35);
+}
+
+/* Custom scrollbar for chat/terminal panes */
+.rk-scroll::-webkit-scrollbar { width: 6px; height: 6px; }
+.rk-scroll::-webkit-scrollbar-track { background: transparent; }
+.rk-scroll::-webkit-scrollbar-thumb {
+  background: rgba(34, 211, 238, 0.35);
+  border-radius: 9999px;
+}
+.rk-scroll::-webkit-scrollbar-thumb:hover { background: rgba(34, 211, 238, 0.6); }
+
+html { scroll-behavior: smooth; }
+
+@media (prefers-reduced-motion: reduce) {
+  .rk-marquee-track,
+  .rk-float,
+  .rk-spin-slow,
+  .rk-orbit-ring,
+  .rk-orbit-chip,
+  .rk-aurora,
+  .rk-gradient-text,
+  .rk-scanline,
+  .rk-pulse-ring::after,
+  .rk-conic-border:hover::before {
+    animation: none !important;
+  }
+  html { scroll-behavior: auto; }
+}

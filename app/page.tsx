@@ -1,18 +1,37 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
-import { motion, useScroll, useTransform, useInView } from 'framer-motion';
+import { useEffect, useRef, useState } from 'react';
+import { AnimatePresence, motion, useInView } from 'framer-motion';
 import { Icon } from '@iconify/react';
 import AiHero from '@/app/components/AiHero';
 import AboutWithChat from '@/app/components/AboutWithChat';
+import ExperienceSection from '@/app/components/Experience';
+import ProjectsSection from '@/app/components/Projects';
+import Skills from '@/app/components/Skills';
+import ResumeTerminal from '@/app/components/ResumeTerminal';
+import SectionHeading from '@/app/components/SectionHeading';
+import Organisations from '@/app/components/Organisations';
+import CompanyLogo from '@/app/components/CompanyLogo';
+import { achievements, education, profile, stats, type Project } from '@/lib/portfolio-data';
 
-// Simple Modal for AI project explainer and assistant
-function Modal({ open, onClose, title, context }: { open: boolean; onClose: () => void; title: string; context: string }) {
+/** Chat modal used for project deep-dives and the floating assistant. */
+function Modal({
+  open,
+  onClose,
+  title,
+  context,
+}: {
+  open: boolean;
+  onClose: () => void;
+  title: string;
+  context: string;
+}) {
   const [q, setQ] = useState('');
   const [msgs, setMsgs] = useState<{ role: 'user' | 'assistant'; content: string }[]>([
     { role: 'assistant', content: `Ask anything about ${title}.` },
   ]);
   const [loading, setLoading] = useState(false);
+  const paneRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!open) {
@@ -21,19 +40,32 @@ function Modal({ open, onClose, title, context }: { open: boolean; onClose: () =
     }
   }, [open, title]);
 
-  const ask = async () => {
-    if (!q.trim()) return;
+  useEffect(() => {
+    paneRef.current?.scrollTo({ top: paneRef.current.scrollHeight, behavior: 'smooth' });
+  }, [msgs, loading]);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    if (open) window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [open, onClose]);
+
+  const ask = async (preset?: string) => {
+    const question = (preset ?? q).trim();
+    if (!question || loading) return;
     setLoading(true);
-    setMsgs((m) => [...m, { role: 'user', content: q }]);
+    setMsgs((m) => [...m, { role: 'user', content: question }]);
     setQ('');
     try {
       const res = await fetch('/api/ai/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ topic: 'project', question: `${context}. Question: ${q}` }),
+        body: JSON.stringify({ topic: 'project', question: `${context}. Question: ${question}` }),
       });
       const data = await res.json();
-      setMsgs((m) => [...m, { role: 'assistant', content: data.answer || 'Here\'s my take.' }]);
+      setMsgs((m) => [...m, { role: 'assistant', content: data.answer || "Here's my take." }]);
     } catch {
       setMsgs((m) => [...m, { role: 'assistant', content: 'Could not reach AI right now.' }]);
     } finally {
@@ -41,719 +73,513 @@ function Modal({ open, onClose, title, context }: { open: boolean; onClose: () =
     }
   };
 
-  if (!open) return null;
   return (
-    <div className="fixed inset-0 z-[60] grid place-items-center bg-black/70 p-4" onClick={onClose}>
-      <div className="w-full max-w-xl rounded-2xl bg-white/5 border border-white/10 backdrop-blur-md" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between p-4 border-b border-white/10">
-          <p className="text-sm text-white/80">AI Assistant — {title}</p>
-          <button onClick={onClose} className="text-white/60 hover:text-white">
-            <Icon icon="mdi:close" className="w-5 h-5" />
-          </button>
-        </div>
-        <div className="h-64 overflow-y-auto p-4 space-y-2">
-          {msgs.map((m, i) => (
-            <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-              <div className={`max-w-[85%] text-xs px-3 py-2 rounded-lg border ${m.role === 'user' ? 'bg-cyan-500/20 border-cyan-300/30' : 'bg-white/5 border-white/10'}`}>{m.content}</div>
+    <AnimatePresence>
+      {open && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-[75] grid place-items-center bg-black/75 backdrop-blur-sm p-4"
+          onClick={onClose}
+        >
+          <motion.div
+            initial={{ opacity: 0, y: 24, scale: 0.97 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 16, scale: 0.98 }}
+            transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+            className="w-full max-w-xl rounded-2xl bg-[#080b12]/95 border border-white/12 shadow-[0_40px_100px_-30px_rgba(34,211,238,0.5)] overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center gap-3 p-4 border-b border-white/10">
+              <span className="w-8 h-8 rounded-lg bg-gradient-to-br from-sky-500 to-cyan-500 grid place-items-center">
+                <Icon icon="mdi:robot-outline" className="w-4 h-4 text-white" />
+              </span>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm text-white/85 truncate">{title}</p>
+                <p className="text-[11px] text-white/40">AI assistant</p>
+              </div>
+              <button onClick={onClose} className="text-white/50 hover:text-white transition-colors" aria-label="Close">
+                <Icon icon="mdi:close" className="w-5 h-5" />
+              </button>
             </div>
-          ))}
-          {loading && <div className="text-xs text-white/60">Thinking…</div>}
-        </div>
-        <div className="p-4 border-t border-white/10 flex gap-2">
-          <input
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter') ask(); }}
-            placeholder="Ask about this project…"
-            className="flex-1 bg-white/5 border border-white/15 rounded-lg px-3 py-2 text-sm placeholder-white/40 outline-none"
-          />
-          <button onClick={ask} className="px-4 py-2 rounded-lg bg-gradient-to-r from-sky-500 to-cyan-500 text-sm">Send</button>
-        </div>
-      </div>
-    </div>
+
+            <div ref={paneRef} className="rk-scroll h-72 overflow-y-auto p-4 space-y-3">
+              {msgs.map((m, i) => (
+                <motion.div
+                  key={i}
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                >
+                  <div
+                    className={`max-w-[85%] text-[12.5px] leading-relaxed px-3.5 py-2.5 rounded-2xl border ${
+                      m.role === 'user'
+                        ? 'bg-cyan-500/20 border-cyan-300/25 rounded-br-sm'
+                        : 'bg-white/[0.04] border-white/10 rounded-bl-sm text-white/80'
+                    }`}
+                  >
+                    {m.content}
+                  </div>
+                </motion.div>
+              ))}
+              {loading && (
+                <span className="inline-flex gap-1 px-3 py-2.5 rounded-2xl bg-white/[0.04] border border-white/10">
+                  {[0, 1, 2].map((d) => (
+                    <motion.span
+                      key={d}
+                      animate={{ opacity: [0.25, 1, 0.25], y: [0, -3, 0] }}
+                      transition={{ duration: 1, repeat: Infinity, delay: d * 0.18 }}
+                      className="w-1.5 h-1.5 rounded-full bg-cyan-300"
+                    />
+                  ))}
+                </span>
+              )}
+            </div>
+
+            <div className="p-4 border-t border-white/10 flex gap-2">
+              <input
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') ask();
+                }}
+                placeholder="Ask about this…"
+                className="flex-1 bg-white/5 border border-white/15 rounded-xl px-3.5 py-2.5 text-sm placeholder-white/35 outline-none focus:border-cyan-400/40 transition-colors"
+              />
+              <button
+                onClick={() => ask()}
+                disabled={loading}
+                className="px-4 rounded-xl bg-gradient-to-r from-sky-500 to-cyan-500 text-sm disabled:opacity-50"
+              >
+                Send
+              </button>
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 }
 
-// Animated Counter Component
-function AnimatedCounter({ end, duration = 2000, suffix = '' }: { end: number; duration?: number; suffix?: string }) {
+function AnimatedCounter({ end, duration = 1800, suffix = '' }: { end: number; duration?: number; suffix?: string }) {
   const [count, setCount] = useState(0);
   const ref = useRef(null);
   const isInView = useInView(ref, { once: true });
 
   useEffect(() => {
-    if (isInView) {
-      let startTime: number;
-      const animate = (currentTime: number) => {
-        if (!startTime) startTime = currentTime;
-        const progress = Math.min((currentTime - startTime) / duration, 1);
-        setCount(Math.floor(progress * end));
-        if (progress < 1) requestAnimationFrame(animate);
-      };
-      requestAnimationFrame(animate);
-    }
+    if (!isInView) return;
+    let startTime: number;
+    let frame: number;
+    const animate = (currentTime: number) => {
+      if (!startTime) startTime = currentTime;
+      const t = Math.min((currentTime - startTime) / duration, 1);
+      // ease-out cubic for a natural settle
+      setCount(Math.floor((1 - Math.pow(1 - t, 3)) * end));
+      if (t < 1) frame = requestAnimationFrame(animate);
+    };
+    frame = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(frame);
   }, [isInView, end, duration]);
 
-  return <span ref={ref}>{count}{suffix}</span>;
-}
-
-// Timeline Item Component
-function TimelineItem({ 
-  title, 
-  company, 
-  period, 
-  location, 
-  description, 
-  techStack, 
-  isLast = false 
-}: {
-  title: string;
-  company: string;
-  period: string;
-  location: string;
-  description: string[];
-  techStack: string;
-  isLast?: boolean;
-}) {
-  const ref = useRef(null);
-  const isInView = useInView(ref, { once: true, margin: "-100px" });
-
   return (
-    <motion.div
-      ref={ref}
-      initial={{ opacity: 0, x: -50 }}
-      animate={isInView ? { opacity: 1, x: 0 } : {}}
-      transition={{ duration: 0.8 }}
-      className="relative flex items-start space-x-6 pb-12"
-    >
-      {/* Timeline line and dot */}
-      <div className="flex flex-col items-center">
-        <motion.div
-          initial={{ scale: 0 }}
-          animate={isInView ? { scale: 1 } : {}}
-          transition={{ duration: 0.5, delay: 0.2 }}
-          className="w-4 h-4 bg-gradient-to-r from-sky-500 to-cyan-500 rounded-full z-10"
-        />
-        {!isLast && (
-          <motion.div
-            initial={{ height: 0 }}
-            animate={isInView ? { height: '100%' } : {}}
-            transition={{ duration: 0.8, delay: 0.5 }}
-            className="w-px bg-gradient-to-b from-sky-500/50 to-transparent mt-2"
-            style={{ minHeight: '100px' }}
-          />
-        )}
-      </div>
-
-      {/* Content */}
-      <div className="flex-1 min-w-0">
-        <div className="bg-white/5 backdrop-blur-sm rounded-lg p-6 border border-white/10">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-2">
-            <h3 className="text-xl font-semibold text-white">{title}</h3>
-            <span className="text-cyan-300 text-sm font-medium">{period}</span>
-          </div>
-          <div className="flex flex-col sm:flex-row sm:items-center mb-4 space-y-1 sm:space-y-0 sm:space-x-4">
-            <p className="text-sky-300 font-medium">{company}</p>
-            <p className="text-white/60 text-sm">{location}</p>
-          </div>
-          <ul className="text-white/80 text-sm space-y-2 mb-4">
-            {description.map((item, index) => (
-              <li key={index} className="flex items-start space-x-2">
-                <Icon icon="material-symbols:check-circle" className="w-4 h-4 text-green-400 mt-0.5 flex-shrink-0" />
-                <span>{item}</span>
-              </li>
-            ))}
-          </ul>
-          <div className="flex flex-wrap gap-2">
-            {techStack.split(', ').map((tech, index) => (
-              <span
-                key={index}
-                className="px-2 py-1 bg-sky-500/20 text-sky-300 rounded-md text-xs font-medium"
-              >
-                {tech}
-              </span>
-            ))}
-          </div>
-        </div>
-      </div>
-    </motion.div>
-  );
-}
-
-// Project Card Component
-function ProjectCard({ 
-  title, 
-  description, 
-  techStack, 
-  features,
-  onTryAI,
-}: {
-  title: string;
-  description: string;
-  techStack: string;
-  features: string[];
-  onTryAI: () => void;
-}) {
-  const ref = useRef(null);
-  const isInView = useInView(ref, { once: true });
-
-  return (
-    <motion.div
-      ref={ref}
-      initial={{ opacity: 0, y: 50 }}
-      animate={isInView ? { opacity: 1, y: 0 } : {}}
-      transition={{ duration: 0.6 }}
-      whileHover={{ y: -10, transition: { duration: 0.3 } }}
-      className="bg-white/5 backdrop-blur-sm rounded-xl p-6 border border-white/10 hover:border-cyan-500/30 transition-all duration-300 [transform-style:preserve-3d]"
-      style={{ perspective: '1000px' }}
-    >
-      <div className="flex items-center space-x-3 mb-4">
-        <div className="w-10 h-10 bg-gradient-to-r from-sky-500 to-cyan-500 rounded-lg flex items-center justify-center">
-          <Icon icon="material-symbols:code" className="w-5 h-5 text-white" />
-        </div>
-        <h3 className="text-xl font-semibold text-white">{title}</h3>
-      </div>
-      
-      <p className="text-white/80 text-sm mb-4 leading-relaxed">{description}</p>
-      
-      <div className="space-y-3 mb-4">
-        {features.map((feature, index) => (
-          <div key={index} className="flex items-start space-x-2">
-            <Icon icon="material-symbols:arrow-right" className="w-4 h-4 text-cyan-400 mt-0.5 flex-shrink-0" />
-            <span className="text-white/70 text-sm">{feature}</span>
-          </div>
-        ))}
-      </div>
-      
-      <div className="flex flex-wrap gap-2 mb-4">
-        {techStack.split(', ').map((tech, index) => (
-          <span
-            key={index}
-            className="px-2 py-1 bg-cyan-500/20 text-cyan-300 rounded-md text-xs font-medium"
-          >
-            {tech}
-          </span>
-        ))}
-      </div>
-      <button onClick={onTryAI} className="mt-2 inline-flex items-center gap-2 text-sm text-cyan-300 hover:text-cyan-200">
-        <Icon icon="mdi:robot-outline" className="w-4 h-4" /> Try Demo with AI
-      </button>
-    </motion.div>
-  );
-}
-
-// Radial Chart Component
-function Radial({ label, value }: { label: string; value: number }) {
-  const radius = 28;
-  const circumference = 2 * Math.PI * radius;
-  const offset = circumference - (value / 100) * circumference;
-  return (
-    <div className="flex items-center gap-3 p-4 rounded-xl bg-white/5 border border-white/10">
-      <svg width="72" height="72" viewBox="0 0 80 80" className="-rotate-90">
-        <circle cx="40" cy="40" r={radius} stroke="rgba(255,255,255,0.12)" strokeWidth="6" fill="none" />
-        <motion.circle
-          cx="40" cy="40" r={radius}
-          stroke="#22d3ee"
-          strokeWidth="6"
-          strokeLinecap="round"
-          fill="none"
-          initial={{ strokeDasharray: circumference, strokeDashoffset: circumference }}
-          whileInView={{ strokeDashoffset: offset }}
-          transition={{ duration: 1, ease: 'easeOut' }}
-        />
-      </svg>
-      <div>
-        <div className="text-sm text-white/80">{label}</div>
-        <div className="text-xs text-white/60">{value}%</div>
-      </div>
-    </div>
+    <span ref={ref} className="tabular-nums">
+      {count}
+      {suffix}
+    </span>
   );
 }
 
 export default function Home() {
-  const { scrollYProgress } = useScroll();
-  const y = useTransform(scrollYProgress, [0, 1], ['0%', '50%']);
-  
-  const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    message: ''
+  const [formData, setFormData] = useState({ name: '', email: '', message: '' });
+  const [modal, setModal] = useState<{ open: boolean; title: string; ctx: string }>({
+    open: false,
+    title: '',
+    ctx: '',
   });
-
-  const [modal, setModal] = useState<{ open: boolean; title: string; ctx: string }>({ open: false, title: '', ctx: '' });
   const [assistantOpen, setAssistantOpen] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const mailtoLink = `mailto:chrishabh2002@gmail.com?subject=Portfolio Contact from ${formData.name}&body=${formData.message}%0A%0AFrom: ${formData.email}`;
+    const mailtoLink = `mailto:${profile.email}?subject=Portfolio Contact from ${encodeURIComponent(
+      formData.name,
+    )}&body=${encodeURIComponent(`${formData.message}\n\nFrom: ${formData.email}`)}`;
     window.location.href = mailtoLink;
   };
 
-  // AI suggestion helper
-  const [suggestion, setSuggestion] = useState<string>("");
+  const copyEmail = async () => {
+    try {
+      await navigator.clipboard.writeText(profile.email);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1800);
+    } catch {
+      /* clipboard unavailable */
+    }
+  };
+
+  const askAboutProject = (p: Project) =>
+    setModal({ open: true, title: p.title, ctx: p.aiContext });
+
+  const [suggestion, setSuggestion] = useState<string>('');
   useEffect(() => {
     (async () => {
       try {
         const res = await fetch('/api/ai/chat', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ topic: 'about', question: 'Based on these skills: AI, ML, React, Node, TensorFlow — recommend an area to explore next.' })
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            topic: 'about',
+            question:
+              'In one sentence, recommend the next area Rishav should explore given his AI agent, backend and security automation work.',
+          }),
         });
         const data = await res.json();
         setSuggestion(data.answer);
       } catch {
-        setSuggestion('Based on these skills, Rishav could also explore MLOps and real-time AI systems.');
+        setSuggestion(
+          'Next frontier: MLOps for agent fleets — evaluation harnesses, sandboxed execution and observability for LLM systems in production.',
+        );
       }
     })();
   }, []);
 
   return (
     <div className="min-h-screen text-white overflow-x-hidden">
-      {/* Hero Section */}
       <AiHero />
 
-      {/* Quick Stats */}
-      <section className="px-4 sm:px-6 lg:px-8 -mt-10 relative z-10">
+      {/* Quick stats */}
+      <section className="px-4 sm:px-6 lg:px-8 relative z-10 -mt-4">
+        <div className="max-w-6xl mx-auto grid grid-cols-2 lg:grid-cols-4 gap-4">
+          {stats.map((s, i) => (
+            <motion.div
+              key={s.label}
+              initial={{ opacity: 0, y: 26 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.6, delay: i * 0.08 }}
+              whileHover={{ y: -6 }}
+              className="rk-glass rk-glow-hover rk-conic-border rounded-2xl p-5"
+            >
+              <Icon icon={s.icon} className={`w-5 h-5 mb-3 ${s.color}`} />
+              <div className={`text-3xl font-semibold mb-1 ${s.color}`}>
+                <AnimatedCounter end={s.value} suffix={s.suffix} />
+              </div>
+              <div className="text-white/50 text-xs leading-snug">{s.label}</div>
+            </motion.div>
+          ))}
+        </div>
+      </section>
+
+      <AboutWithChat />
+      <Organisations />
+      <ExperienceSection />
+      <ProjectsSection onAsk={askAboutProject} />
+      <Skills />
+
+      {/* AI suggestion strip */}
+      <section className="px-4 sm:px-6 lg:px-8">
         <motion.div
-          style={{ y }}
-          initial={{ opacity: 0, y: 30 }}
+          initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
-          transition={{ duration: 0.8 }}
-          className="grid grid-cols-2 sm:grid-cols-4 gap-6"
+          transition={{ duration: 0.7 }}
+          className="max-w-3xl mx-auto rk-glass rounded-2xl p-5 flex items-start gap-3"
         >
-          <div className="bg-white/5 backdrop-blur-sm rounded-lg p-4 border border-white/10">
-            <div className="text-3xl font-semibold text-cyan-400 mb-1">
-              <AnimatedCounter end={10} suffix="+" />
-            </div>
-            <div className="text-white/60 text-sm">Projects</div>
-          </div>
-          <div className="bg-white/5 backdrop-blur-sm rounded-lg p-4 border border-white/10">
-            <div className="text-3xl font-semibold text-sky-400 mb-1">
-              <AnimatedCounter end={3} suffix="+" />
-            </div>
-            <div className="text-white/60 text-sm">Hackathon Wins</div>
-          </div>
-          <div className="bg-white/5 backdrop-blur-sm rounded-lg p-4 border border-white/10">
-            <div className="text-3xl font-semibold text-cyan-400 mb-1">
-              <AnimatedCounter end={2} suffix="+" />
-            </div>
-            <div className="text-white/60 text-sm">Internships</div>
-          </div>
-          <div className="bg-white/5 backdrop-blur-sm rounded-lg p-4 border border-white/10">
-            <div className="text-3xl font-semibold text-green-400 mb-1">
-              <AnimatedCounter end={95} suffix="%" />
-            </div>
-            <div className="text-white/60 text-sm">Uptime on shipped features</div>
+          <Icon icon="mdi:lightning-bolt" className="w-5 h-5 text-cyan-300 shrink-0 mt-0.5" />
+          <div>
+            <p className="text-[11px] uppercase tracking-[0.18em] text-white/40 mb-1">AI take on what&apos;s next</p>
+            <p className="text-sm text-white/70 leading-relaxed">
+              {suggestion || 'Analyzing the stack…'}
+            </p>
           </div>
         </motion.div>
       </section>
 
-      {/* About with AI Chat */}
-      <AboutWithChat />
+      <ResumeTerminal />
 
-      {/* Experience Section */}
-      <section id="experience" className="py-20 px-4 sm:px-6 lg:px-8">
+      {/* Achievements */}
+      <section id="achievements" className="py-24 px-4 sm:px-6 lg:px-8">
         <div className="max-w-4xl mx-auto">
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8 }}
-            viewport={{ once: true }}
-            className="text-center mb-16"
-          >
-            <h2 className="text-4xl font-light mb-6">Experience</h2>
-            <div className="w-16 h-1 bg-gradient-to-r from-sky-500 to-cyan-500 mx-auto mb-8"></div>
-          </motion.div>
-
-          <div className="space-y-0">
-            <TimelineItem
-              title="Software Development Intern"
-              company="Momntum AI"
-              period="2025–Present"
-              location="Fairview, TN"
-              description={[
-                "Built and enhanced UI for mission-critical enterprise software, increasing usability by 30%",
-                "Integrated multiple third-party APIs, reducing data retrieval latency by 40%",
-                "Debugged and tested secure communication protocols, ensuring compliance with industry security standards",
-                "Conducted peer code reviews, reducing production errors by 15%",
-                "Supported deployment across 10+ systems with zero downtime"
-              ]}
-              techStack="React, Flask, Node.js, APIs, GitHub, AWS"
-            />
-            <TimelineItem
-              title="Machine Learning Intern"
-              company="My Job Grow"
-              period="Jul–Sep 2024"
-              location="Bengaluru, India"
-              description={[
-                "Conducted data preprocessing, feature engineering, and model evaluation on large-scale datasets",
-                "Applied supervised ML techniques (Regression, Classification, Decision Trees, Random Forests, SVM)",
-                "Improved model accuracy through hyperparameter tuning and pipeline optimization",
-                "Collaborated in a remote team environment, strengthening communication & problem-solving skills"
-              ]}
-              techStack="Python, Scikit-learn, Pandas, Matplotlib, TensorFlow"
-              isLast={true}
-            />
-          </div>
-        </div>
-      </section>
-
-      {/* Projects Section */}
-      <section id="projects" className="py-20 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-6xl mx-auto">
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8 }}
-            viewport={{ once: true }}
-            className="text-center mb-16"
-          >
-            <h2 className="text-4xl font-light mb-6">Featured Projects</h2>
-            <div className="w-16 h-1 bg-gradient-to-r from-sky-500 to-cyan-500 mx-auto mb-8"></div>
-          </motion.div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            <ProjectCard
-              title="⚙ Snapfix-AI"
-              description="AI-powered defect detection and maintenance automation with Computer Vision and Flask backend."
-              techStack="Python, Flask, OpenCV, Azure Cognitive Services, Docker"
-              features={[
-                "Integrated CV models reducing inspection time by 40%",
-                "Designed REST APIs for automation & database management",
-                "Prepared integration with Azure Cognitive Services",
-                "Optimized system performance in Agile workflows"
-              ]}
-              onTryAI={() => setModal({ open: true, title: 'Snapfix-AI', ctx: 'Explain the Snapfix-AI project: CV-based defect detection, Flask backend, Azure potential.' })}
-            />
-            <ProjectCard
-              title="📈 Stock Price Prediction Model"
-              description="Time series forecasting using LSTM networks for market trend prediction."
-              techStack="TensorFlow, Keras, NumPy, Pandas, Matplotlib"
-              features={[
-                "Implemented LSTM for time series",
-                "Analyzed stock datasets for trends",
-                "Optimized hyperparameters",
-                "Visualization dashboard"
-              ]}
-              onTryAI={() => setModal({ open: true, title: 'Stock Prediction', ctx: 'Explain the LSTM stock prediction project and typical pipeline.' })}
-            />
-            <ProjectCard
-              title="🧑‍💻 AI-based Attendance System"
-              description="Face recognition attendance tracker with real-time detection."
-              techStack="Python, OpenCV, Flask, SQLite"
-              features={["Real-time face detection", "Secure attendance logging", "Web dashboard", "Accuracy optimizations"]}
-              onTryAI={() => setModal({ open: true, title: 'Attendance System', ctx: 'Explain the face-recognition attendance system and trade-offs.' })}
-            />
-            <ProjectCard
-              title="💬 AI Chatbot (NLP + LLMs)"
-              description="Contextual chatbot using transformers and LLMs."
-              techStack="Python, Hugging Face, Flask, React"
-              features={["Transformers for dialogue", "LLM integration", "React UI", "Conversation memory"]}
-              onTryAI={() => setModal({ open: true, title: 'AI Chatbot', ctx: 'Explain the LLM chatbot and how context is handled.' })}
-            />
-          </div>
-        </div>
-      </section>
-
-      {/* Skills Section */}
-      <section id="skills" className="py-20 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-6xl mx-auto">
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8 }}
-            viewport={{ once: true }}
-            className="text-center mb-16"
-          >
-            <h2 className="text-4xl font-light mb-6">Skills & Technologies</h2>
-            <div className="w-16 h-1 bg-gradient-to-r from-sky-500 to-cyan-500 mx-auto mb-8"></div>
-          </motion.div>
-
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-10">
-            <Radial label="Python" value={90} />
-            <Radial label="React" value={85} />
-            <Radial label="TensorFlow" value={80} />
-            <Radial label="Node.js" value={78} />
-          </div>
-
-          <div className="text-center text-sm text-white/80 max-w-3xl mx-auto">
-            <Icon icon="mdi:lightning-bolt" className="inline w-4 h-4 text-cyan-300 mr-1"/>
-            {suggestion}
-          </div>
-        </div>
-      </section>
-
-      {/* Hackathon Achievements Section */}
-      <section className="py-20 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-4xl mx-auto">
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8 }}
-            viewport={{ once: true }}
-            className="text-center mb-16"
-          >
-            <h2 className="text-4xl font-light mb-6">🏆 Hackathon Achievements</h2>
-            <div className="w-16 h-1 bg-gradient-to-r from-sky-500 to-cyan-500 mx-auto mb-8"></div>
-          </motion.div>
-
-          <div className="space-y-6">
-            <motion.div
-              initial={{ opacity: 0, x: -30 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.6 }}
-              viewport={{ once: true }}
-              className="bg-white/5 backdrop-blur-sm rounded-xl p-6 border border-white/10"
-            >
-              <div className="flex items-start space-x-4">
-                <div className="w-12 h-12 bg-gradient-to-r from-yellow-500 to-amber-500 rounded-lg flex items-center justify-center flex-shrink-0">
-                  <Icon icon="material-symbols:trophy" className="w-6 h-6 text-white" />
-                </div>
-                <div>
-                  <h3 className="text-xl font-semibold text-white mb-2">AI-driven Smart Agriculture Solution</h3>
-                  <p className="text-white/80 text-sm mb-3">
-                    Automated plant disease detection and pesticide control using ML + IoT.
-                  </p>
-                  <div className="flex flex-wrap gap-2">
-                    <span className="px-2 py-1 bg-green-500/20 text-green-300 rounded-md text-xs">🥇 Winner</span>
-                    <span className="px-2 py-1 bg-sky-500/20 text-sky-300 rounded-md text-xs">Agriculture</span>
+          <SectionHeading
+            eyebrow="Recognition"
+            title="Hackathon Achievements"
+            icon="mdi:trophy-outline"
+            subtitle="Prototypes built under time pressure — from smart agriculture to defense-grade computer vision."
+          />
+          <div className="space-y-5">
+            {achievements.map((a, i) => (
+              <motion.div
+                key={a.title}
+                initial={{ opacity: 0, x: -30 }}
+                whileInView={{ opacity: 1, x: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.6, delay: i * 0.1 }}
+                whileHover={{ x: 6 }}
+                className="rk-glass rk-glow-hover rk-conic-border rounded-2xl p-6"
+              >
+                <div className="flex items-start gap-4">
+                  <div
+                    className={`w-12 h-12 shrink-0 rounded-xl bg-gradient-to-br ${a.accent} grid place-items-center shadow-lg`}
+                  >
+                    <Icon icon={a.icon} className="w-6 h-6 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold text-white mb-1.5">{a.title}</h3>
+                    <p className="text-white/70 text-sm mb-3 leading-relaxed">{a.description}</p>
+                    <div className="flex flex-wrap gap-2">
+                      {a.tags.map((t) => (
+                        <span
+                          key={t}
+                          className="px-2.5 py-1 rounded-md bg-white/5 border border-white/10 text-white/70 text-[11px]"
+                        >
+                          {t}
+                        </span>
+                      ))}
+                    </div>
                   </div>
                 </div>
-              </div>
-            </motion.div>
-
-            <motion.div
-              initial={{ opacity: 0, x: -30 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.6, delay: 0.1 }}
-              viewport={{ once: true }}
-              className="bg-white/5 backdrop-blur-sm rounded-xl p-6 border border-white/10"
-            >
-              <div className="flex items-start space-x-4">
-                <div className="w-12 h-12 bg-gradient-to-r from-red-500 to-rose-500 rounded-lg flex items-center justify-center flex-shrink-0">
-                  <Icon icon="material-symbols:security" className="w-6 h-6 text-white" />
-                </div>
-                <div>
-                  <h3 className="text-xl font-semibold text-white mb-2">Defense Tech Hackathon</h3>
-                  <p className="text-white/80 text-sm mb-3">
-                    AI-powered surveillance prototype for real-time threat detection using computer vision.
-                  </p>
-                  <div className="flex flex-wrap gap-2">
-                    <span className="px-2 py-1 bg-green-500/20 text-green-300 rounded-md text-xs">🥇 Winner</span>
-                    <span className="px-2 py-1 bg-rose-500/20 text-rose-300 rounded-md text-xs">Defense Tech</span>
-                  </div>
-                </div>
-              </div>
-            </motion.div>
-
-            <motion.div
-              initial={{ opacity: 0, x: -30 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.6, delay: 0.2 }}
-              viewport={{ once: true }}
-              className="bg-white/5 backdrop-blur-sm rounded-xl p-6 border border-white/10"
-            >
-              <div className="flex items-start space-x-4">
-                <div className="w-12 h-12 bg-gradient-to-r from-sky-500 to-cyan-500 rounded-lg flex items-center justify-center flex-shrink-0">
-                  <Icon icon="material-symbols:code" className="w-6 h-6 text-white" />
-                </div>
-                <div>
-                  <h3 className="text-xl font-semibold text-white mb-2">Multiple Coding Competitions</h3>
-                  <p className="text-white/80 text-sm mb-3">
-                    ML-driven prototypes under time constraints, showcasing rapid development.
-                  </p>
-                  <div className="flex flex-wrap gap-2">
-                    <span className="px-2 py-1 bg-green-500/20 text-green-300 rounded-md text-xs">🥇 Multiple Wins</span>
-                    <span className="px-2 py-1 bg-sky-500/20 text-sky-300 rounded-md text-xs">ML/AI</span>
-                  </div>
-                </div>
-              </div>
-            </motion.div>
+              </motion.div>
+            ))}
           </div>
         </div>
       </section>
 
-      {/* Education Section */}
-      <section className="py-20 px-4 sm:px-6 lg:px-8">
+      {/* Education */}
+      <section id="education" className="py-24 px-4 sm:px-6 lg:px-8">
         <div className="max-w-4xl mx-auto">
+          <SectionHeading eyebrow="Academics" title="Education" icon="mdi:school-outline" />
           <motion.div
-            initial={{ opacity: 0, y: 30 }}
+            initial={{ opacity: 0, y: 26 }}
             whileInView={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8 }}
             viewport={{ once: true }}
-            className="text-center mb-16"
+            transition={{ duration: 0.7 }}
+            className="rk-glass rk-conic-border rounded-2xl p-8 relative overflow-hidden"
           >
-            <h2 className="text-4xl font-light mb-6">🎓 Education</h2>
-            <div className="w-16 h-1 bg-gradient-to-r from-sky-500 to-cyan-500 mx-auto mb-8"></div>
-          </motion.div>
-
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8 }}
-            viewport={{ once: true }}
-            className="bg-white/5 backdrop-blur-sm rounded-xl p-8 border border-cyan-400/20"
-          >
-            <div className="text-center">
-              <h3 className="text-2xl font-semibold text-white mb-2">Bachelor of Technology (B.Tech)</h3>
-              <p className="text-cyan-300 text-lg mb-2">Computer Science Engineering</p>
-              <p className="text-white/80 mb-4">Galgotias University, Greater Noida, UP</p>
-              <p className="text-sky-300 font-medium mb-6">(2023 – 2027)</p>
-              <div className="max-w-2xl mx-auto">
-                <p className="text-white/70 text-sm leading-relaxed mb-4">
-                  Focus Areas: AI, Machine Learning, System Design, Full‑Stack Development
-                </p>
-                <p className="text-white/60 text-sm">
-                  Active in hackathons, coding challenges, and AI research projects.
-                </p>
+            <div className="absolute -top-24 -right-24 w-64 h-64 rounded-full bg-cyan-500/10 blur-3xl" aria-hidden />
+            <div className="relative flex flex-col sm:flex-row sm:items-start gap-6">
+              <motion.a
+                href={education.website}
+                target="_blank"
+                rel="noopener noreferrer"
+                whileHover={{ scale: 1.04 }}
+                className="shrink-0 rk-glass rounded-2xl px-4 py-3 grid place-items-center shadow-[0_0_30px_-12px_rgba(34,211,238,0.9)]"
+                aria-label={education.school}
+              >
+                <CompanyLogo
+                  src={education.logoImage}
+                  alt={education.school}
+                  fallbackIcon="mdi:school"
+                  className="h-11 w-[172px]"
+                />
+              </motion.a>
+              <div className="flex-1">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <h3 className="text-2xl font-semibold text-white">{education.degree}</h3>
+                  <span className="text-xs px-3 py-1 rounded-full border border-white/10 bg-white/5 text-white/60 w-fit">
+                    {education.period}
+                  </span>
+                </div>
+                <p className="text-cyan-300 mt-1">{education.field}</p>
+                <a
+                  href={education.website}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-white/60 text-sm mt-1 inline-flex items-center gap-1.5 hover:text-cyan-300 transition-colors"
+                >
+                  <Icon icon="mdi:office-building-outline" className="w-4 h-4" />
+                  {education.school}, {education.location}
+                  <Icon icon="mdi:open-in-new" className="w-3 h-3 opacity-60" />
+                </a>
+                <div className="mt-5 flex flex-wrap gap-2">
+                  {education.focus.map((f) => (
+                    <span
+                      key={f}
+                      className="px-3 py-1.5 rounded-lg bg-sky-500/10 border border-sky-400/20 text-sky-200/90 text-[11px]"
+                    >
+                      {f}
+                    </span>
+                  ))}
+                </div>
+                <p className="mt-5 text-white/50 text-sm">{education.note}</p>
               </div>
             </div>
           </motion.div>
         </div>
       </section>
 
-      {/* Contact Section */}
-      <section id="contact" className="py-20 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-4xl mx-auto">
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8 }}
-            viewport={{ once: true }}
-            className="text-center mb-16"
-          >
-            <h2 className="text-4xl font-light mb-6">Get In Touch</h2>
-            <div className="w-16 h-1 bg-gradient-to-r from-sky-500 to-cyan-500 mx-auto mb-8"></div>
-            <p className="text-white/70 text-lg max-w-2xl mx-auto">
-              Let&apos;s collaborate on your next project or discuss opportunities in AI and software development.
-            </p>
-          </motion.div>
+      {/* Contact */}
+      <section id="contact" className="py-24 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-5xl mx-auto">
+          <SectionHeading
+            eyebrow="Contact"
+            title="Get In Touch"
+            icon="mdi:email-outline"
+            subtitle="Let's collaborate on AI systems, backend platforms or automation tooling — or just say hello."
+          />
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
-            {/* Contact Form */}
+          <div className="grid grid-cols-1 lg:grid-cols-[1.1fr_1fr] gap-6">
             <motion.div
-              initial={{ opacity: 0, x: -30 }}
+              initial={{ opacity: 0, x: -26 }}
               whileInView={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.8 }}
               viewport={{ once: true }}
+              transition={{ duration: 0.7 }}
+              className="rk-glass rounded-2xl p-6"
             >
-              <form onSubmit={handleSubmit} className="space-y-6">
-                <div className="grid grid-cols-2 gap-2 text-xs">
-                  {['I’d like to collaborate on AI projects','Can you build an MVP?','Available for internship?','Let’s discuss ML consulting'].map((s)=> (
-                    <button key={s} type="button" onClick={()=> setFormData((f)=> ({...f, message: s}))} className="px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white/70 hover:text-white/90">
-                      {s}
-                    </button>
-                  ))}
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div className="grid grid-cols-2 gap-2 text-[11px]">
+                  {[
+                    'I&#39;d like to collaborate on AI agents',
+                    'Can you build an MVP?',
+                    'Available for a full-time role?',
+                    'Let&#39;s discuss automation consulting',
+                  ].map((s) => {
+                    const text = s.replace(/&#39;/g, "'");
+                    return (
+                      <button
+                        key={s}
+                        type="button"
+                        onClick={() => setFormData((f) => ({ ...f, message: text }))}
+                        className="px-3 py-2 rounded-lg bg-white/[0.04] border border-white/10 text-white/55 hover:text-cyan-200 hover:border-cyan-400/35 transition-colors text-left"
+                      >
+                        {text}
+                      </button>
+                    );
+                  })}
                 </div>
-                <div>
-                  <input
-                    type="text"
-                    placeholder="Your Name"
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    required
-                    className="w-full px-4 py-3 bg-white/5 border border-white/20 rounded-lg focus:border-sky-500 focus:outline-none transition-colors duration-300 text-white placeholder-white/50"
-                  />
-                </div>
-                <div>
-                  <input
-                    type="email"
-                    placeholder="Your Email"
-                    value={formData.email}
-                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    required
-                    className="w-full px-4 py-3 bg-white/5 border border-white/20 rounded-lg focus:border-sky-500 focus:outline-none transition-colors duration-300 text-white placeholder-white/50"
-                  />
-                </div>
-                <div>
-                  <textarea
-                    placeholder="Your Message"
-                    rows={5}
-                    value={formData.message}
-                    onChange={(e) => setFormData({ ...formData, message: e.target.value })}
-                    required
-                    className="w-full px-4 py-3 bg-white/5 border border-white/20 rounded-lg focus:border-sky-500 focus:outline-none transition-colors duration-300 text-white placeholder-white/50 resize-none"
-                  />
-                </div>
+                <input
+                  type="text"
+                  placeholder="Your Name"
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  required
+                  className="w-full px-4 py-3 bg-white/5 border border-white/15 rounded-xl focus:border-cyan-400/50 focus:outline-none transition-colors text-white placeholder-white/35 text-sm"
+                />
+                <input
+                  type="email"
+                  placeholder="Your Email"
+                  value={formData.email}
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  required
+                  className="w-full px-4 py-3 bg-white/5 border border-white/15 rounded-xl focus:border-cyan-400/50 focus:outline-none transition-colors text-white placeholder-white/35 text-sm"
+                />
+                <textarea
+                  placeholder="Your Message"
+                  rows={5}
+                  value={formData.message}
+                  onChange={(e) => setFormData({ ...formData, message: e.target.value })}
+                  required
+                  className="w-full px-4 py-3 bg-white/5 border border-white/15 rounded-xl focus:border-cyan-400/50 focus:outline-none transition-colors text-white placeholder-white/35 resize-none text-sm"
+                />
                 <motion.button
                   type="submit"
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
-                  className="w-full px-6 py-3 bg-gradient-to-r from-sky-500 to-cyan-500 rounded-lg font-medium flex items-center justify-center space-x-2 hover:shadow-xl transition-shadow duration-300"
+                  className="w-full px-6 py-3 bg-gradient-to-r from-sky-500 to-cyan-500 rounded-xl font-medium flex items-center justify-center gap-2 shadow-[0_0_35px_-10px_rgba(56,189,248,0.9)]"
                 >
-                  <Icon icon="ic:baseline-send" className="w-5 h-5" />
-                  <span>Send Message</span>
+                  <Icon icon="ic:baseline-send" className="w-4 h-4" />
+                  Send Message
                 </motion.button>
               </form>
             </motion.div>
 
-            {/* Contact Information */}
             <motion.div
-              initial={{ opacity: 0, x: 30 }}
+              initial={{ opacity: 0, x: 26 }}
               whileInView={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.8 }}
               viewport={{ once: true }}
-              className="space-y-8"
+              transition={{ duration: 0.7 }}
+              className="space-y-4"
             >
-              <div className="bg-white/5 backdrop-blur-sm rounded-xl p-6 border border-white/10">
-                <h3 className="text-xl font-semibold text-white mb-6">Contact Information</h3>
-                <div className="space-y-4">
-                  <div className="flex items-center space-x-4">
-                    <div className="w-10 h-10 bg-gradient-to-r from-sky-500 to-cyan-500 rounded-lg flex items-center justify-center">
-                      <Icon icon="ic:baseline-email" className="w-5 h-5 text-white" />
-                    </div>
-                    <div>
-                      <p className="text-white/60 text-sm">Email</p>
-                      <p className="text-white">chrishabh2002@gmail.com</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center space-x-4">
-                    <div className="w-10 h-10 bg-gradient-to-r from-green-500 to-emerald-500 rounded-lg flex items-center justify-center">
-                      <Icon icon="ic:baseline-phone" className="w-5 h-5 text-white" />
-                    </div>
-                    <div>
-                      <p className="text-white/60 text-sm">Phone</p>
-                      <p className="text-white">+91 6398904235</p>
-                    </div>
-                  </div>
+              <div className="rk-glass rounded-2xl p-6 space-y-4">
+                <h3 className="text-lg font-semibold text-white">Contact Information</h3>
+
+                <button onClick={copyEmail} className="w-full flex items-center gap-4 text-left group">
+                  <span className="w-10 h-10 rounded-xl bg-gradient-to-br from-sky-500 to-cyan-500 grid place-items-center shrink-0">
+                    <Icon icon="ic:baseline-email" className="w-5 h-5 text-white" />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-white/45 text-[11px]">Email</span>
+                    <span className="block text-white text-sm truncate">{profile.email}</span>
+                  </span>
+                  <Icon
+                    icon={copied ? 'mdi:check' : 'mdi:content-copy'}
+                    className={`w-4 h-4 shrink-0 transition-colors ${copied ? 'text-emerald-400' : 'text-white/30 group-hover:text-cyan-300'}`}
+                  />
+                </button>
+
+                <a href={`tel:${profile.phoneHref}`} className="flex items-center gap-4 group">
+                  <span className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-500 grid place-items-center shrink-0">
+                    <Icon icon="ic:baseline-phone" className="w-5 h-5 text-white" />
+                  </span>
+                  <span>
+                    <span className="block text-white/45 text-[11px]">Phone</span>
+                    <span className="block text-white text-sm group-hover:text-cyan-300 transition-colors">
+                      {profile.phone}
+                    </span>
+                  </span>
+                </a>
+
+                <div className="flex items-center gap-4">
+                  <span className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500 to-fuchsia-500 grid place-items-center shrink-0">
+                    <Icon icon="mdi:map-marker" className="w-5 h-5 text-white" />
+                  </span>
+                  <span>
+                    <span className="block text-white/45 text-[11px]">Location</span>
+                    <span className="block text-white text-sm">{profile.location}</span>
+                  </span>
                 </div>
               </div>
 
-              <div className="bg-white/5 backdrop-blur-sm rounded-xl p-6 border border-white/10">
-                <h3 className="text-xl font-semibold text-white mb-6">Follow Me</h3>
-                <div className="flex space-x-4">
-                  <motion.a
-                    href="https://linkedin.com/in/rishav-kumar-983a5b273"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    whileHover={{ scale: 1.1, y: -2 }}
-                    className="w-12 h-12 bg-gradient-to-r from-sky-600 to-cyan-600 rounded-lg flex items-center justify-center hover:shadow-lg transition-shadow duration-300"
-                  >
-                    <Icon icon="mdi:linkedin" className="w-6 h-6 text-white" />
-                  </motion.a>
-                  <motion.a
-                    href="https://github.com/Chrishabh2002"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    whileHover={{ scale: 1.1, y: -2 }}
-                    className="w-12 h-12 bg-gradient-to-r from-gray-700 to-gray-900 rounded-lg flex items-center justify-center hover:shadow-lg transition-shadow duration-300"
-                  >
-                    <Icon icon="mdi:github" className="w-6 h-6 text-white" />
-                  </motion.a>
+              <div className="rk-glass rounded-2xl p-6">
+                <h3 className="text-lg font-semibold text-white mb-4">Find Me Online</h3>
+                <div className="flex gap-3">
+                  {[
+                    { href: profile.linkedin, icon: 'mdi:linkedin', bg: 'from-sky-600 to-cyan-600', label: 'LinkedIn' },
+                    { href: profile.github, icon: 'mdi:github', bg: 'from-slate-700 to-slate-900', label: 'GitHub' },
+                    { href: `mailto:${profile.email}`, icon: 'mdi:email', bg: 'from-cyan-600 to-sky-700', label: 'Email' },
+                  ].map((s) => (
+                    <motion.a
+                      key={s.label}
+                      href={s.href}
+                      target={s.href.startsWith('http') ? '_blank' : undefined}
+                      rel={s.href.startsWith('http') ? 'noopener noreferrer' : undefined}
+                      whileHover={{ scale: 1.08, y: -3 }}
+                      className={`w-12 h-12 rounded-xl bg-gradient-to-br ${s.bg} grid place-items-center shadow-lg`}
+                      aria-label={s.label}
+                    >
+                      <Icon icon={s.icon} className="w-6 h-6 text-white" />
+                    </motion.a>
+                  ))}
                 </div>
+                <a
+                  href={profile.resume}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-5 w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-cyan-400/25 bg-cyan-400/5 text-sm text-cyan-200 hover:bg-cyan-400/15 transition-colors"
+                >
+                  <Icon icon="mdi:file-download-outline" className="w-4 h-4" />
+                  Download Résumé (PDF)
+                </a>
               </div>
             </motion.div>
           </div>
         </div>
       </section>
 
-      {/* Floating Assistant */}
-      <button
+      {/* Floating assistant */}
+      <motion.button
+        initial={{ scale: 0 }}
+        animate={{ scale: 1 }}
+        transition={{ delay: 1.2, type: 'spring', stiffness: 300, damping: 18 }}
+        whileHover={{ scale: 1.08 }}
+        whileTap={{ scale: 0.94 }}
         onClick={() => setAssistantOpen(true)}
-        className="fixed z-[55] bottom-6 right-6 w-12 h-12 rounded-full bg-gradient-to-r from-sky-500 to-cyan-500 grid place-items-center shadow-[0_0_25px_rgba(34,211,238,0.45)]"
+        className="fixed z-[55] bottom-6 right-6 w-14 h-14 rounded-full bg-gradient-to-br from-sky-500 to-cyan-500 grid place-items-center shadow-[0_0_35px_rgba(34,211,238,0.55)]"
         aria-label="Open AI Assistant"
       >
         <Icon icon="mdi:robot" className="w-6 h-6 text-white" />
-      </button>
+        <span className="absolute inset-0 rounded-full text-cyan-400 rk-pulse-ring" aria-hidden />
+      </motion.button>
 
       <Modal
         open={modal.open}
@@ -765,7 +591,7 @@ export default function Home() {
         open={assistantOpen}
         onClose={() => setAssistantOpen(false)}
         title="Portfolio Assistant"
-        context="General questions about Rishav\'s background, projects, and contact."
+        context="General questions about Rishav Kumar's background, experience, projects, skills and contact details."
       />
     </div>
   );
