@@ -1,4 +1,28 @@
-.DS_Store
+# dependencies
 node_modules
-.vscode
+
+# next.js build output
 .next
+out
+.vercel
+
+# environment variables — never commit real secrets
+.env
+.env.local
+.env.*.local
+.env.development
+.env.production
+
+# typescript incremental build cache
+*.tsbuildinfo
+
+# editor / OS
+.DS_Store
+.vscode
+.idea
+Thumbs.db
+
+# stray dev-server logs from mistyped shell redirects
+e HEAD
+tyle-run-dev -e
+*.log
