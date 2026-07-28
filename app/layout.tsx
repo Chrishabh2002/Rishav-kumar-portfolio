@@ -7,81 +7,71 @@ import Navbar from "@/app/components/Navbar";
 import Footer from "@/app/components/Footer";
 import ThreeParticleField from "@/app/components/ThreeParticleField";
 import ScrollProgress from "@/app/components/ScrollProgress";
-import { education, experiences, profile, skillCategories } from "@/lib/portfolio-data";
+import { profile } from "@/lib/portfolio-data";
+import {
+  buildJsonLd,
+  SITE_DESCRIPTION,
+  SITE_KEYWORDS,
+  SITE_NAME,
+  SITE_TITLE,
+  SITE_URL,
+} from "@/lib/seo";
 
 const primaryFont = Geist({
   weight: ["300", "400", "500", "600", "700"],
   subsets: ["latin"],
 });
 
-const siteUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://example.com";
-const description = `${profile.headline} in ${profile.location}. Building command-execution agents, production APIs and security-oriented automation with Python, LLMs, FastAPI, Linux and Docker.`;
-
 export const metadata: Metadata = {
-  title: `${profile.name} — ${profile.headline} & Backend Engineer`,
-  description,
-  keywords: [
-    profile.name,
-    "AI Software Engineer",
-    "AI Security Engineer",
-    "AI Agents",
-    "LLM Applications",
-    "RAG",
-    "LangChain",
-    "Python Backend Engineer",
-    "FastAPI",
-    "Flask",
-    "Machine Learning",
-    "Computer Vision",
-    "OpenCV",
-    "Docker",
-    "Linux automation",
-    "Portfolio",
-  ],
-  authors: [{ name: profile.name, url: siteUrl }],
+  metadataBase: new URL(SITE_URL),
+  title: {
+    default: SITE_TITLE,
+    template: `%s | ${profile.name}`,
+  },
+  description: SITE_DESCRIPTION,
+  keywords: SITE_KEYWORDS,
+  applicationName: SITE_NAME,
+  authors: [{ name: profile.name, url: SITE_URL }],
   creator: profile.name,
+  publisher: profile.name,
+  category: "technology",
   icons: { icon: "/icon", apple: "/apple-icon" },
-  metadataBase: new URL(siteUrl),
   alternates: { canonical: "/" },
   openGraph: {
-    title: `${profile.name} — ${profile.headline}`,
-    description,
-    url: siteUrl,
-    siteName: profile.name,
-    images: [{ url: profile.avatar, width: 1200, height: 630, alt: profile.name }],
+    type: "profile",
+    firstName: "Rishav",
+    lastName: "Kumar",
+    username: "Chrishabh2002",
+    title: SITE_TITLE,
+    description: SITE_DESCRIPTION,
+    url: SITE_URL,
+    siteName: SITE_NAME,
     locale: "en_US",
-    type: "website",
+    // og:image comes from app/opengraph-image.tsx via the file convention,
+    // which resolves against metadataBase and adds a cache-busting hash.
   },
   twitter: {
     card: "summary_large_image",
-    title: `${profile.name} — ${profile.headline}`,
-    description,
-    images: [profile.avatar],
+    title: SITE_TITLE,
+    description: SITE_DESCRIPTION,
   },
-  robots: { index: true, follow: true },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+      "max-video-preview": -1,
+    },
+  },
+  formatDetection: { email: false, telephone: false, address: false },
 };
 
 export const viewport: Viewport = {
   themeColor: "#0ea5e9",
   colorScheme: "dark",
-};
-
-/** Structured data so search engines read the résumé, not just the markup. */
-const personJsonLd = {
-  "@context": "https://schema.org",
-  "@type": "Person",
-  name: profile.name,
-  jobTitle: profile.headline,
-  description: profile.summary,
-  image: profile.avatar,
-  email: `mailto:${profile.email}`,
-  telephone: profile.phone,
-  url: siteUrl,
-  address: { "@type": "PostalAddress", addressLocality: "Noida", addressCountry: "IN" },
-  sameAs: [profile.linkedin, profile.github],
-  worksFor: { "@type": "Organization", name: experiences[0].company },
-  alumniOf: { "@type": "CollegeOrUniversity", name: education.school },
-  knowsAbout: skillCategories.flatMap((c) => c.skills.map((s) => s.name)),
 };
 
 export default function RootLayout({
@@ -91,10 +81,17 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={primaryFont.className}>
+      <head>
+        {/* Warm up the Iconify CDN that renders every brand mark on the page. */}
+        <link rel="preconnect" href="https://api.iconify.design" crossOrigin="" />
+        <link rel="dns-prefetch" href="https://api.iconify.design" />
+        <link rel="preconnect" href="https://storage.googleapis.com" crossOrigin="" />
+      </head>
       <body className="antialiased bg-black text-white min-h-svh">
+        {/* schema.org graph — lets search engines read the résumé, not just markup. */}
         <script
           type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(personJsonLd) }}
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(buildJsonLd()) }}
         />
         <div className="fixed inset-0 -z-10 pointer-events-none">
           <ThreeParticleField />

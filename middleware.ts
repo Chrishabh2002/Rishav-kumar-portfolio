@@ -13,8 +13,10 @@ export const middleware = createAuthMiddleware({
 });
 
 // Use the default matcher config or customize as needed
+// Crawler-facing routes and static assets skip auth entirely, so search
+// engines and social scrapers never hit middleware on their way to them.
 export const config = {
   matcher: [
-    '/((?!_next/static|_next/image|api/|login|callback|auth/|images/|fonts/|static/|public/|favicon.ico).*)',
+    '/((?!_next/static|_next/image|api/|login|callback|auth/|images/|fonts/|static/|public/|logos/|favicon.ico|robots.txt|sitemap.xml|opengraph-image|icon|apple-icon|.*\\.(?:png|jpg|jpeg|svg|webp|ico|pdf|xml|txt)$).*)',
   ]
 };
